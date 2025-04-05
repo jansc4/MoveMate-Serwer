@@ -1,5 +1,4 @@
 from typing import List
-
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -16,15 +15,22 @@ from app.auth import (
     get_current_user
 )
 
-
-
 router = APIRouter()
 
 
 @router.post("/register", response_model=UserResponse)
 async def register_user(user: UserCreate, db=Depends(get_db)):
-    """Rejestracja nowego użytkownika"""
-    await  check_email(str(user.email))
+    """
+    Registers a new user in the system.
+
+    Args:
+        user (UserCreate): The user data for registration.
+        db (Database): The database connection.
+
+    Returns:
+        UserResponse: The response with the newly registered user's username and email.
+    """
+    await check_email(str(user.email))
     hashed_password = hash_password(user.password)
     new_user = UserInDB(
         username=user.username,
@@ -40,22 +46,26 @@ async def register_user(user: UserCreate, db=Depends(get_db)):
 @router.post("/login", response_model=TokenResponse)
 async def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db=Depends(get_db)):
     """
-    Logowanie z użyciem OAuth2PasswordRequestForm, który oczekuje:
-    - application/x-www-form-urlencoded
-    - pola: username i password
-    Dla nas: username == email
+    Logs a user in using OAuth2PasswordRequestForm and returns access and refresh tokens.
+
+    Args:
+        form_data (OAuth2PasswordRequestForm): The form data containing username and password.
+        db (Database): The database connection.
+
+    Returns:
+        TokenResponse: The response containing access and refresh tokens.
     """
     db_user = await db.users.find_one({"email": form_data.username})
     if not db_user or not verify_password(form_data.password, db_user["password"]):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     user_id = str(db_user["_id"])
-    role = db_user.get("role", "user")  # domyślnie 'user' jeśli nie ma pola
+    role = db_user.get("role", "user")  # Default to 'user' if no role is defined
 
-    # Dodajemy 'scopes' do tokenów na podstawie roli
+    # Add scopes to tokens based on role
     access_token = create_access_token({
         "sub": user_id,
-        "scopes": [role]  # scopes muszą być listą
+        "scopes": [role]  # Scopes must be a list
     })
 
     refresh_token = create_refresh_token({
@@ -70,15 +80,23 @@ async def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db=Depend
 
 
 async def refresh_token(refresh_token: str, db=Depends(get_db)):
-    """Odświeżanie access tokena za pomocą refresh tokena"""
+    """
+    Refreshes the access token using a valid refresh token.
 
+    Args:
+        refresh_token (str): The refresh token used to generate a new access token.
+        db (Database): The database connection.
+
+    Returns:
+        TokenResponse: The response containing the new access token.
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    # Weryfikacja refresh tokena
+    # Verify the refresh token
     payload = verify_token(refresh_token)
     if not payload:
         raise credentials_exception
@@ -87,21 +105,30 @@ async def refresh_token(refresh_token: str, db=Depends(get_db)):
     if not user_id:
         raise credentials_exception
 
-    # Znajdź użytkownika w bazie
+    # Find the user in the database
     user = await db.users.find_one({"_id": ObjectId(user_id)})
     if user is None:
         raise credentials_exception
 
-    # Generowanie nowego access tokena
+    # Generate a new access token
     access_token = create_access_token(data={"sub": user_id, "scopes": user["role"]})
 
     return TokenResponse(
-        access_token=access_token,token_type="bearer")
-
+        access_token=access_token, token_type="bearer"
+    )
 
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user=Depends(get_current_user)):
+    """
+    Retrieves the current user's username and email.
+
+    Args:
+        current_user (dict): The current authenticated user.
+
+    Returns:
+        UserResponse: The response containing the current user's username and email.
+    """
     return {
         "username": current_user["username"],
         "email": current_user["email"]
@@ -110,54 +137,84 @@ async def get_me(current_user=Depends(get_current_user)):
 
 @router.get("/user_profile", response_model=List[UserProfileResponse])
 async def user_profile(current_user: dict = Depends(get_current_user), db=Depends(get_db)):
-    # Tylko administratorzy mają dostęp
+    """
+    Retrieves a list of all user profiles in the system. Only accessible by admins.
+
+    Args:
+        current_user (dict): The current authenticated user.
+        db (Database): The database connection.
+
+    Returns:
+        List[UserProfileResponse]: A list of user profiles.
+    """
     check_role(current_user, "admin")
 
-    # Pobieramy wszystkich użytkowników z bazy danych
+    # Fetch all users from the database
     users_cursor = db.users.find()
-    users = await users_cursor.to_list(length=None)  # Pobiera całą kolekcję użytkowników
+    users = await users_cursor.to_list(length=None)
 
-    # Tworzymy odpowiedź w formie listy instancji UserProfileResponse
+    # Create a response with a list of UserProfileResponse instances
     user_profiles = [UserProfileResponse(username=user["username"], email=user["email"], id=user["_id"],
                                          role=user["role"]) for user in users]
 
     return user_profiles
 
+
 @router.get("/user_profile/{user_id}", response_model=UserProfileResponse)
 async def user_profile_with_id(user_id: str, current_user: dict = Depends(get_current_user), db=Depends(get_db)):
-    # Sprawdzamy, czy użytkownik ma rolę "admin"
+    """
+    Retrieves a user profile by ID. Only accessible by admins.
+
+    Args:
+        user_id (str): The ID of the user to fetch.
+        current_user (dict): The current authenticated user.
+        db (Database): The database connection.
+
+    Returns:
+        UserProfileResponse: The user's profile response.
+    """
     check_role(current_user, "admin")
 
-    # Pobieramy użytkownika z bazy danych na podstawie ID
+    # Fetch the user from the database by ID
     user = await check_id(str(user_id), db=db)
 
-    # Tworzymy odpowiedź w formie instancji UserProfileResponse
+    # Create and return the user profile response
     user_profile = UserProfileResponse(
         username=user["username"],
         email=user["email"],
-        id=str(user["_id"]),  # Konwertujemy ObjectId na string
+        id=str(user["_id"]),
         role=user["role"]
     )
 
     return user_profile
 
+
 @router.get("/user_profile/email/{email}", response_model=UserProfileResponse)
 async def user_profile_by_email(email: str, current_user: dict = Depends(get_current_user), db=Depends(get_db)):
-    # Sprawdzamy, czy użytkownik ma rolę "admin"
+    """
+    Retrieves a user profile by email. Only accessible by admins.
+
+    Args:
+        email (str): The email of the user to fetch.
+        current_user (dict): The current authenticated user.
+        db (Database): The database connection.
+
+    Returns:
+        UserProfileResponse: The user's profile response.
+    """
     check_role(current_user, "admin")
 
-    # Pobieramy użytkownika z bazy danych na podstawie emaila
+    # Fetch the user from the database by email
     user = await db.users.find_one({"email": email})
 
-    # Jeśli użytkownik nie został znaleziony, rzucamy wyjątek
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Tworzymy odpowiedź w formie instancji UserProfileResponse
+    # Create and return the user profile response
     user_profile = UserProfileResponse(
         username=user["username"],
         email=user["email"],
-        id=str(user["_id"]),  # Konwertujemy ObjectId na string
+        id=str(user["_id"]),
         role=user["role"]
     )
 
@@ -166,49 +223,63 @@ async def user_profile_by_email(email: str, current_user: dict = Depends(get_cur
 
 @router.post("/user_profile", response_model=UserProfileResponse)
 async def create_user_profile(user: UpdateUserProfile, current_user: dict = Depends(get_current_user), db=Depends(get_db)):
-    # Sprawdzamy, czy użytkownik ma rolę "admin"
-    check_role(current_user, "admin")
+    """
+    Creates a new user profile. Only accessible by admins.
 
-    # Sprawdzamy, czy użytkownik o podanym emailu już istnieje
+    Args:
+        user (UpdateUserProfile): The data for the new user.
+        current_user (dict): The current authenticated user.
+        db (Database): The database connection.
+
+    Returns:
+        UserProfileResponse: The newly created user's profile response.
+    """
+    check_role(current_user, "admin")
 
     await check_email(str(user.email))
 
-    # Tworzymy nowego użytkownika
-    hashed_password = hash_password(user.password)  # Haszujemy hasło
+    # Create a new user with the provided data
+    hashed_password = hash_password(user.password)
     new_user = UserInDB(username=user.username, email=user.email, password=hashed_password, role=user.role)
 
-    # Zapisujemy użytkownika w bazie
     result = await db.users.insert_one(new_user.model_dump())
 
-    # Tworzymy odpowiedź
     return UserProfileResponse(
         username=user.username,
         email=user.email,
-        id=str(result.inserted_id),  # Zwracamy ID nowego użytkownika
+        id=str(result.inserted_id),
         role=user.role
     )
 
 
 @router.put("/user_profile/{user_id}", response_model=UserProfileResponse)
 async def update_user_profile(user_id: str, user: UpdateUserProfile, current_user: dict = Depends(get_current_user), db=Depends(get_db)):
-    # Sprawdzamy, czy użytkownik ma rolę "admin"
+    """
+    Updates a user's profile. Only accessible by admins.
+
+    Args:
+        user_id (str): The ID of the user to update.
+        user (UpdateUserProfile): The updated user data.
+        current_user (dict): The current authenticated user.
+        db (Database): The database connection.
+
+    Returns:
+        UserProfileResponse: The updated user's profile response.
+    """
     check_role(current_user, "admin")
 
-    # Sprawdzamy, czy użytkownik o danym ID istnieje
+    # Ensure the user exists
     existing_user = await check_id(str(user_id), db=db)
 
-    # Aktualizujemy dane użytkownika
     updated_user = {
         "username": user.username,
         "email": user.email,
-        "password": hash_password(user.password),  # Haszujemy hasło
+        "password": hash_password(user.password),
         "role": user.role
     }
 
-    # Zaktualizowanie użytkownika w bazie
     await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": updated_user})
 
-    # Tworzymy odpowiedź
     return UserProfileResponse(
         username=user.username,
         email=user.email,
@@ -219,22 +290,28 @@ async def update_user_profile(user_id: str, user: UpdateUserProfile, current_use
 
 @router.delete("/user_profile/{user_id}", response_model=UserProfileResponse)
 async def delete_user_profile(user_id: str, current_user: dict = Depends(get_current_user), db=Depends(get_db)):
-    # Sprawdzamy, czy użytkownik ma rolę "admin"
+    """
+    Deletes a user's profile. Only accessible by admins.
+
+    Args:
+        user_id (str): The ID of the user to delete.
+        current_user (dict): The current authenticated user.
+        db (Database): The database connection.
+
+    Returns:
+        UserProfileResponse: The deleted user's profile response.
+    """
     check_role(current_user, "admin")
 
-    # Sprawdzamy, czy użytkownik o danym ID istnieje
     existing_user = await check_id(str(user_id), db=db)
 
-    # Usuwamy użytkownika z bazy
     delete_result = await db.users.delete_one({"_id": ObjectId(user_id)})
     if delete_result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="User not found or already deleted")
 
-    # Tworzymy odpowiedź
     return UserProfileResponse(
         username=existing_user["username"],
         email=existing_user["email"],
         id=user_id,
         role=existing_user["role"]
     )
-
