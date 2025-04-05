@@ -1,11 +1,15 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
+from bson import ObjectId
 from typing import Optional
 
-class User(BaseModel):
+class UserInDB(BaseModel):
+    id: Optional[str] = None
     username: str
-    email: EmailStr
+    email: str
     password: str
 
-class UserInDB(User):
-    id: Optional[str] = None
-
+    class Config:
+        # Dodajemy, by Pydantic poprawnie obsługiwało ID MongoDB
+        json_encoders = {
+            ObjectId: str
+        }
