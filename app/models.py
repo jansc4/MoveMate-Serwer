@@ -1,15 +1,15 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from bson import ObjectId
-from typing import Optional
+from typing import Optional, Literal
 
 class UserInDB(BaseModel):
     id: Optional[str] = None
     username: str
-    email: str
+    email: EmailStr
     password: str
+    role: Literal["admin", "user"] = "user"  # domyślnie każdy nowy użytkownik to user
 
     class Config:
-        # Dodajemy, by Pydantic poprawnie obsługiwało ID MongoDB
         json_encoders = {
             ObjectId: str
         }
