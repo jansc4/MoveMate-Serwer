@@ -30,7 +30,7 @@ async def register_user(user: UserCreate, db=Depends(get_db)):
     Returns:
         UserResponse: The response with the newly registered user's username and email.
     """
-    await check_email(str(user.email))
+    await check_email(str(user.email), db)
     hashed_password = hash_password(user.password)
     new_user = UserInDB(
         username=user.username,
@@ -154,7 +154,7 @@ async def user_profile(current_user: dict = Depends(get_current_user), db=Depend
     users = await users_cursor.to_list(length=None)
 
     # Create a response with a list of UserProfileResponse instances
-    user_profiles = [UserProfileResponse(username=user["username"], email=user["email"], id=user["_id"],
+    user_profiles = [UserProfileResponse(username=user["username"], email=user["email"], id=str(user["_id"]),
                                          role=user["role"]) for user in users]
 
     return user_profiles
@@ -176,7 +176,7 @@ async def user_profile_with_id(user_id: str, current_user: dict = Depends(get_cu
     check_role(current_user, "admin")
 
     # Fetch the user from the database by ID
-    user = await check_id(str(user_id), db=db)
+    user = await check_id(str(user_id), db)
 
     # Create and return the user profile response
     user_profile = UserProfileResponse(
@@ -236,7 +236,7 @@ async def create_user_profile(user: UpdateUserProfile, current_user: dict = Depe
     """
     check_role(current_user, "admin")
 
-    await check_email(str(user.email))
+    await check_email(str(user.email), db)
 
     # Create a new user with the provided data
     hashed_password = hash_password(user.password)
@@ -303,7 +303,7 @@ async def delete_user_profile(user_id: str, current_user: dict = Depends(get_cur
     """
     check_role(current_user, "admin")
 
-    existing_user = await check_id(str(user_id), db=db)
+    existing_user = await check_id(str(user_id), db)
 
     delete_result = await db.users.delete_one({"_id": ObjectId(user_id)})
     if delete_result.deleted_count == 0:

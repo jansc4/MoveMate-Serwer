@@ -30,6 +30,7 @@ async def check_email(required_email: str, db=Depends(get_db)):
     Raises:
         HTTPException: Jeśli email jest już w użyciu, zgłasza błąd 400 (Bad Request).
     """
+    print(f"🔗 Połączono z bazą: {db}")  # Debugging
     existing_user = await db.users.find_one({"email": required_email})
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already in use")
