@@ -13,6 +13,10 @@ async def connect_db():
     try:
         if "users" not in await db.list_collection_names():
             await db.create_collection("users")
+        if "calendar" not in await db.list_collection_names():
+            await db.create_collection("calendar")
+        if "exercises" not in await db.list_collection_names():
+            await db.create_collection("exercises")
     except Exception as e:
         print(f"Error connecting to the database: {e}")
 

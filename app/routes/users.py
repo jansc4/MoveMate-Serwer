@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from app.database import get_db
 from app.models import UserInDB
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from typing import Annotated
 from app.utils.security import check_role, check_email, check_id
 from app.schemas import UserCreate, UserResponse, TokenResponse, UserProfileResponse, UpdateUserProfile
 from app.auth import (
@@ -19,7 +21,7 @@ router = APIRouter()
 
 
 @router.post("/register", response_model=UserResponse)
-async def register_user(user: UserCreate, db=Depends(get_db)):
+async def register_user(user: UserCreate, db: Annotated[AsyncIOMotorDatabase, Depends(get_db)]):
     """
     Registers a new user in the system.
 
@@ -44,7 +46,7 @@ async def register_user(user: UserCreate, db=Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db=Depends(get_db)):
+async def login_user(db: Annotated[AsyncIOMotorDatabase, Depends(get_db)], form_data: OAuth2PasswordRequestForm = Depends()):
     """
     Logs a user in using OAuth2PasswordRequestForm and returns access and refresh tokens.
 
@@ -78,8 +80,8 @@ async def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db=Depend
         token_type="bearer"
     )
 
-
-async def refresh_token(refresh_token: str, db=Depends(get_db)):
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_token(refresh_token: str, db: Annotated[AsyncIOMotorDatabase, Depends(get_db)]):
     """
     Refreshes the access token using a valid refresh token.
 
@@ -136,7 +138,7 @@ async def get_me(current_user=Depends(get_current_user)):
 
 
 @router.get("/user_profile", response_model=List[UserProfileResponse])
-async def user_profile(current_user: dict = Depends(get_current_user), db=Depends(get_db)):
+async def user_profile(db: Annotated[AsyncIOMotorDatabase, Depends(get_db)], current_user: dict = Depends(get_current_user)):
     """
     Retrieves a list of all user profiles in the system. Only accessible by admins.
 
@@ -161,7 +163,7 @@ async def user_profile(current_user: dict = Depends(get_current_user), db=Depend
 
 
 @router.get("/user_profile/{user_id}", response_model=UserProfileResponse)
-async def user_profile_with_id(user_id: str, current_user: dict = Depends(get_current_user), db=Depends(get_db)):
+async def user_profile_with_id(user_id: str,db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],  current_user: dict = Depends(get_current_user)):
     """
     Retrieves a user profile by ID. Only accessible by admins.
 
@@ -190,7 +192,7 @@ async def user_profile_with_id(user_id: str, current_user: dict = Depends(get_cu
 
 
 @router.get("/user_profile/email/{email}", response_model=UserProfileResponse)
-async def user_profile_by_email(email: str, current_user: dict = Depends(get_current_user), db=Depends(get_db)):
+async def user_profile_by_email(email: str,db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],  current_user: dict = Depends(get_current_user)):
     """
     Retrieves a user profile by email. Only accessible by admins.
 
@@ -222,7 +224,7 @@ async def user_profile_by_email(email: str, current_user: dict = Depends(get_cur
 
 
 @router.post("/user_profile", response_model=UserProfileResponse)
-async def create_user_profile(user: UpdateUserProfile, current_user: dict = Depends(get_current_user), db=Depends(get_db)):
+async def create_user_profile(user: UpdateUserProfile, db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],  current_user: dict = Depends(get_current_user)):
     """
     Creates a new user profile. Only accessible by admins.
 
@@ -253,7 +255,7 @@ async def create_user_profile(user: UpdateUserProfile, current_user: dict = Depe
 
 
 @router.put("/user_profile/{user_id}", response_model=UserProfileResponse)
-async def update_user_profile(user_id: str, user: UpdateUserProfile, current_user: dict = Depends(get_current_user), db=Depends(get_db)):
+async def update_user_profile(user_id: str, user: UpdateUserProfile, db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],  current_user: dict = Depends(get_current_user)):
     """
     Updates a user's profile. Only accessible by admins.
 
@@ -289,7 +291,7 @@ async def update_user_profile(user_id: str, user: UpdateUserProfile, current_use
 
 
 @router.delete("/user_profile/{user_id}", response_model=UserProfileResponse)
-async def delete_user_profile(user_id: str, current_user: dict = Depends(get_current_user), db=Depends(get_db)):
+async def delete_user_profile(user_id: str, db: Annotated[AsyncIOMotorDatabase, Depends(get_db)], current_user: dict = Depends(get_current_user)):
     """
     Deletes a user's profile. Only accessible by admins.
 
