@@ -1,5 +1,5 @@
 from typing import Optional, Literal, List
-from app.utils.Enums import ExerciseType, Difficulty
+from app.utils.enums import ExerciseType, Difficulty
 from pydantic import BaseModel, EmailStr, Field
 from bson import ObjectId
 from datetime import datetime

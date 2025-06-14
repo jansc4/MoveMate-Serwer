@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field
 from bson import ObjectId
 from typing import Optional, Literal, List
-from app.utils.Enums import ExerciseType, Difficulty
+from app.utils.enums import ExerciseType, Difficulty
 from app.schemas import ExercisePerformanceBase
 from app.schemas import CalendarBase
 
