@@ -33,8 +33,8 @@ class UpdateUserProfile(UserCreate):
 class ExerciseCreate(BaseModel):
     name: str
     description: str
-    video_url: str
-    thumbnail_url: str
+    video_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
     exerciseType: ExerciseType
     difficulty: Difficulty
 
@@ -42,8 +42,8 @@ class ExerciseResponse(BaseModel):
     id: str
     name: str
     description: str
-    video_url: str
-    thumbnail_url: str
+    video_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
     exerciseType: ExerciseType
     difficulty: Difficulty
 
@@ -55,12 +55,7 @@ class ExerciseUpdate(BaseModel):
     exerciseType: Optional[ExerciseType] = None
     difficulty: Optional[Difficulty] = None
 
-class CalendarCreate(BaseModel):
-    user_id: ObjectId = None
-    date: datetime = None
-    steps: int = None
-    maxSteps: int = None
-    exercises: Optional[List] = None    # List[ExercisePerformance]
+
 
 class ExercisePerformanceBase(BaseModel):
     exercise_id: str
@@ -77,3 +72,27 @@ class ExercisePerformanceCreate(ExercisePerformanceBase):
 
 class ExercisePerformanceResponse(ExercisePerformanceBase):
     id: str
+
+class CalendarBase(BaseModel):
+    date: datetime
+    steps: Optional[int] = None
+    maxSteps: Optional[int] = None
+    exercises: Optional[List[ExercisePerformanceCreate]] = []
+
+class CalendarCreate(CalendarBase):
+    #user_id: str
+    pass
+
+class CalendarResponse(CalendarBase):
+    id: str
+    user_id: str
+    exercises: Optional[List[ExercisePerformanceResponse]] = []
+
+class StepsBase(BaseModel):
+    steps: Optional[int] = None
+    maxSteps: Optional[int] = None
+
+class StepsCreate(StepsBase):
+    pass
+class StepsResponse(StepsBase):
+    pass

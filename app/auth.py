@@ -6,6 +6,7 @@ from fastapi.security import OAuth2PasswordBearer, SecurityScopes
 from app.database import get_db
 from bson import ObjectId
 from app.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS
+from app.models import UserInDB
 
 # Ustawiamy scope'y tutaj
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login", scopes={
@@ -126,4 +127,5 @@ async def get_current_user(security_scopes: SecurityScopes, token: str = Depends
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not enough permissions",
             )
-    return user
+    return UserInDB(id=str(user["_id"]), username=user["username"],
+        email=user["email"],  role=user["role"], password=user["password"])

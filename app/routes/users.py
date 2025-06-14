@@ -126,14 +126,14 @@ async def get_me(current_user=Depends(get_current_user)):
     Retrieves the current user's username and email.
 
     Args:
-        current_user (dict): The current authenticated user.
+        current_user (UserInDB): The current authenticated user.
 
     Returns:
         UserResponse: The response containing the current user's username and email.
     """
     return {
-        "username": current_user["username"],
-        "email": current_user["email"]
+        "username": current_user.username,
+        "email": current_user.email
     }
 
 

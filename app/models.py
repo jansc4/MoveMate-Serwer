@@ -1,8 +1,9 @@
 from pydantic import BaseModel, EmailStr, Field
 from bson import ObjectId
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 from app.utils.Enums import ExerciseType, Difficulty
-from schemas import ExercisePerformanceBase
+from app.schemas import ExercisePerformanceBase
+from app.schemas import CalendarBase
 
 class UserInDB(BaseModel):
     id: Optional[str] = None
@@ -32,7 +33,16 @@ class ExerciseInDB(BaseModel):
 
 class ExercisePerformanceInDB(ExercisePerformanceBase):
     id: Optional[str] = None
-    exercise_id: ObjectId
+    exercise_id: Optional[str] = None
 
     class Config:
         json_encoders = {ObjectId: str}
+
+
+class CalendarInDB(CalendarBase):
+    user_id: Optional[str] = None
+    exercises: Optional[List["ExercisePerformanceInDB"]] = []
+
+    class Config:
+        json_encoders = {ObjectId: str}
+
