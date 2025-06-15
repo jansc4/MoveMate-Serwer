@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field
 from bson import ObjectId
 from typing import Optional, Literal, List
-from app.utils.enums import ExerciseType, Difficulty
+from app.utils.Enums import ExerciseType, Difficulty
 from app.schemas import ExercisePerformanceBase
 from app.schemas import CalendarBase
 
@@ -21,8 +21,8 @@ class ExerciseInDB(BaseModel):
     id: Optional[str] = None
     name: str
     description: str
-    video_url: str
-    thumbnail_url: str
+    video_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
     exerciseType: ExerciseType
     difficulty: Difficulty
 

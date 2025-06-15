@@ -33,8 +33,6 @@ class UpdateUserProfile(UserCreate):
 class ExerciseCreate(BaseModel):
     name: str
     description: str
-    video_url: Optional[str] = None
-    thumbnail_url: Optional[str] = None
     exerciseType: ExerciseType
     difficulty: Difficulty
 
