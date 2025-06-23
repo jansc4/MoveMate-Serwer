@@ -5,8 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.database import get_db
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.auth import get_current_user
-from app.schemas import CalendarCreate, CalendarResponse, StepsResponse, StepsCreate, StepsHistoryResponse, \
-    ExercisePerformanceResponse, ExercisePerformanceCreate
+from app.schemas import CalendarCreate, CalendarResponse, StepsResponse, StepsUpdate, StepsHistoryResponse, \
+    ExercisePerformanceResponse, ExercisePerformanceCreate, StepsGoalUpdate
 from app.models import CalendarInDB, ExercisePerformanceInDB
 from datetime import datetime
 from fastapi import Path
@@ -120,7 +120,7 @@ async def get_steps_today(db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
 ###########
 @router.put("/steps/today", response_model=StepsResponse)
 async def put_steps_today(
-        steps: StepsCreate,
+        steps: StepsUpdate,
         db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
         current_user=Depends(get_current_user),
 ):
@@ -128,20 +128,47 @@ async def put_steps_today(
     result = await db.calendar.find_one({"date": date, "user_id": current_user.id})
 
     if not result:
-        # Użycie istniejącej funkcji do utworzenia wpisu
+        # Utworzenie nowego wpisu z zachowaniem domyślnego maxSteps
         calendar_data = CalendarCreate(
             date=date,
             steps=steps.steps,
+            maxSteps=10000  # domyślna wartość
+        )
+        result = await create_calendar_entry(calendar_data, db, current_user)
+        return StepsResponse(steps=result.steps, maxSteps=result.maxSteps)
+
+    # Aktualizacja tylko kroków, zachowując istniejący maxSteps
+    await db.calendar.update_one(
+        {"date": date, "user_id": current_user.id},
+        {"$set": {"steps": steps.steps}}
+    )
+
+    updated_result = await db.calendar.find_one({"date": date, "user_id": current_user.id})
+    return StepsResponse(steps=updated_result["steps"], maxSteps=updated_result["maxSteps"])
+
+@router.put("/steps/today/goal", response_model=StepsResponse)
+async def put_steps_today(
+        steps: StepsGoalUpdate,
+        db: Annotated[AsyncIOMotorDatabase, Depends(get_db)],
+        current_user=Depends(get_current_user),
+):
+    date = today()
+    result = await db.calendar.find_one({"date": date, "user_id": current_user.id})
+
+    if not result:
+        # Utworzenie nowego wpisu z zachowaniem domyślnego maxSteps
+        calendar_data = CalendarCreate(
+            date=date,
+            steps=0,    # domyślna wartość
             maxSteps=steps.maxSteps
         )
         result = await create_calendar_entry(calendar_data, db, current_user)
         return StepsResponse(steps=result.steps, maxSteps=result.maxSteps)
 
-    # Aktualizacja istniejącego wpisu
-    update_data = {k: v for k, v in steps.model_dump().items() if v is not None}
+    # Aktualizacja tylko kroków, zachowując istniejący maxSteps
     await db.calendar.update_one(
         {"date": date, "user_id": current_user.id},
-        {"$set": update_data}
+        {"$set": {"maxSteps": steps.maxSteps}}
     )
 
     updated_result = await db.calendar.find_one({"date": date, "user_id": current_user.id})

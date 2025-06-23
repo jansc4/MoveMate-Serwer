@@ -62,7 +62,7 @@ class ExercisePerformanceBase(BaseModel):
     numberOfRepetitions: Optional[int] = None
     weight: Optional[float] = None
     intervalBetween_days: Optional[int] = None
-    done: Optional[bool] = None
+    done: Optional[bool] = False
     notes: Optional[str] = None
 
 class ExercisePerformanceCreate(ExercisePerformanceBase):
@@ -88,12 +88,17 @@ class CalendarResponse(CalendarBase):
 
 class StepsBase(BaseModel):
     steps: Optional[int] = None
-    maxSteps: Optional[int] = None
+
+class StepsGoalUpdate(BaseModel):
+    maxSteps: int
 
 class StepsCreate(StepsBase):
+    maxSteps: Optional[int] = None
+
+class StepsUpdate(StepsBase):
     pass
 class StepsResponse(StepsBase):
-    pass
+    maxSteps: Optional[int] = None
 
 class StepsHistoryResponse(BaseModel):
     steps: Optional[int] = 0
